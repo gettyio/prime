@@ -1,42 +1,65 @@
 version: 2
-
-
 jobs:
   build:
     docker:
-      - image: circleci/node:10
-      - image: circleci/postgres:10.9
-        environment:
-          POSTGRES_USER: prime
-          POSTGRES_DB: prime-test
-    environment:
-      TEST_DATABASE_URL: 'postgres://prime@localhost:5432/prime-test'
-      SESSION_SECRET: 'very-secret'
+    - image: circleci/node:10
+
     steps:
       - checkout
+
+      # restores dependencies from cache
       - restore_cache:
-          name: Restore Yarn Package Cache
           keys:
-            - yarn-packages-{{ checksum "yarn.lock" }}
+            - yarn-dependencies-{{ checksum "yarn.lock" }}
+      
+      # install dependencies
       - run:
-          name: Install Dependencies
           command: yarn install --frozen-lockfile
+      
+      # save dependencies to cache
       - save_cache:
-          name: Save Yarn Package Cache
-          key: yarn-packages-{{ checksum "yarn.lock" }}
+          key: yarn-dependencies-{{ checksum "yarn.lock" }}
           paths:
             - ~/.cache/yarn
-      - run: yarn run lerna bootstrap
-      - run: yarn lint:ci
-      - run: yarn compile
-      - run: yarn coverage:ci
-      - run: yarn test:prettier
-      - run: yarn codecov
-      - run:
-          name: Copy artifacts
-          command: cd packages; for x in */junit.xml; do [ -f $x ] && mkdir -p "../reports/junit/${x%/junit.xml}" && cp $x "../reports/junit/${x%/junit.xml}/results.xml"; done; cd ..
-          when: always
-      - store_test_results:
-          path: reports/junit
-      - store_artifacts:
-          path: reports/junit
+          
+      - run: |
+          yarn run lerna bootstrap
+          yarn compile
+  
+  docker-build-push:
+    docker:
+    - image: docker:stable
+
+    working_directory: /tmp/repo
+
+    steps:
+      - checkout
+
+      - setup_remote_docker
+
+      # build and push docker prime image
+      - run: |
+          docker login -u $DOCKER_LOGIN -p $DOCKER_PWD
+          docker build . --tag $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1
+          if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            docker tag $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+            docker push $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
+          else
+            docker tag $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH
+            docker push $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:$CIRCLE_BRANCH
+          fi
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+    - build
+    - docker-build-push:
+        context: docker-hub-credentials
+        requires:
+        - build
+        filters:
+          branches:
+            only:
+            - development
+            - master
