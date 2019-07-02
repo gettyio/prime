@@ -12,12 +12,10 @@ RUN apk add --no-cache git npm jq
 ARG BUILD_DIR=/root/primecms
 ARG INSTALL_DIR=/var/primecms
 ARG PRIMECMS_GIT_REPO=https://github.com/birkir/prime.git
-ARG PRIMECMS_GIT_CID=3f8dc2d44d7dd4165b7fdf1f0ab4ef6bc426b908
 
 WORKDIR ${BUILD_DIR}
 RUN git clone "${PRIMECMS_GIT_REPO}" "${BUILD_DIR}" && \
     cd "${BUILD_DIR}" && \
-    git checkout "${PRIMECMS_GIT_CID}" && \
     rm -fr .git
 RUN while true; do yarn install --silent; test $? -eq 0 && break; sleep 1; done;
 RUN yarn setup
