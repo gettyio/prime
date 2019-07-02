@@ -12,7 +12,6 @@ RUN apk add --no-cache git npm jq
 ARG BUILD_DIR=/root/primecms
 ARG INSTALL_DIR=/var/primecms
 ARG PRIMECMS_GIT_REPO=https://github.com/birkir/prime.git
-ENV NODE_ENV=production
 
 WORKDIR ${BUILD_DIR}
 RUN git clone "${PRIMECMS_GIT_REPO}" "${BUILD_DIR}" && \
@@ -20,7 +19,7 @@ RUN git clone "${PRIMECMS_GIT_REPO}" "${BUILD_DIR}" && \
     rm -fr .git
 RUN while true; do yarn install --silent; test $? -eq 0 && break; sleep 1; done;
 RUN yarn setup
-RUN yarn compile
+RUN NODE_ENV=production yarn compile
 
 WORKDIR ${INSTALL_DIR}/node_modules/@primecms
 RUN for dir in "${BUILD_DIR}"/packages/*; do \
