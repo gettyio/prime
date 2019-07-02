@@ -12,6 +12,7 @@ RUN apk add --no-cache git npm jq
 ARG BUILD_DIR=/root/primecms
 ARG INSTALL_DIR=/var/primecms
 ARG PRIMECMS_GIT_REPO=https://github.com/birkir/prime.git
+ENV NODE_ENV=production
 
 WORKDIR ${BUILD_DIR}
 RUN git clone "${PRIMECMS_GIT_REPO}" "${BUILD_DIR}" && \
