@@ -3,6 +3,7 @@ jobs:
   build:
     docker:
     - image: circleci/node:10
+    working_directory: /tmp/repo
 
     steps:
       - checkout
@@ -10,7 +11,7 @@ jobs:
       # restores dependencies from cache
       - restore_cache:
           keys:
-          - yarn-deps-{{ checksum "yarn.lock" }}
+          - deps-{{ checksum "yarn.lock" }}
       
       # install dependencies
       - run:
@@ -18,7 +19,7 @@ jobs:
       
       # save dependencies to cache
       - save_cache:
-          key: yarn-deps-{{ checksum "yarn.lock" }}
+          key: deps-{{ checksum "yarn.lock" }}
           paths:
           - node_modules
           
@@ -28,14 +29,13 @@ jobs:
 
       # save dependencies to cache
       - save_cache:
-          key: packages-dist-{{ .Revision }}-{{ .Branch }}
+          key: dist-{{ .Revision }}-{{ .Branch }}
           paths:
           - packages
   
   docker-build-push:
     docker:
     - image: docker:stable
-
     working_directory: /tmp/repo
 
     steps:
@@ -46,12 +46,12 @@ jobs:
       # restores dependencies from cache
       - restore_cache:
           keys:
-          - yarn-deps-{{ checksum "yarn.lock" }}
+          - deps-{{ checksum "yarn.lock" }}
 
       # restores distribution folder from cache
       - restore_cache:
           keys:
-          - packages-dist-{{ .Revision }}-{{ .Branch }}
+          - dist-{{ .Revision }}-{{ .Branch }}
 
       # build and push docker prime image
       - run: |
